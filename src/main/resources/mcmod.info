@@ -1,0 +1,16 @@
+[
+{
+  "modid": "worldgenblacklist",
+  "name": "World Generator Blacklist",
+  "description": "Stops WorldGenerators from doing anything to a dimension",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["SnakeFang12"],
+  "credits": "",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
