@@ -11,7 +11,7 @@ import net.minecraftforge.fml.common.IWorldGenerator;
 
 public class TestWorldGenerator implements IWorldGenerator
 {
-    private List<Integer> printed = new ArrayList<Integer>();
+    private List<Integer> printed = new ArrayList<>();
     
     @Override
     public void generate(Random random, int chunkX, int chunkZ, World world, IChunkGenerator chunkGenerator, IChunkProvider chunkProvider)

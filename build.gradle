@@ -23,8 +23,8 @@ version = "${version_mc}-${version_major}.${version_minor}.${version_revision}"
 group = "${package_group}"
 archivesBaseName = mod_name
 
-sourceCompatibility=1.7
-targetCompatibility=1.7
+sourceCompatibility=1.8
+targetCompatibility=1.8
 
 
 jar

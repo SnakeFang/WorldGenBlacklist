@@ -1,18 +1,12 @@
 package snakefang.worldgenblacklist;
 
-import java.lang.reflect.Field;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 
-import org.objectweb.asm.Attribute;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.InsnList;
@@ -27,52 +21,27 @@ import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldProvider;
 import net.minecraft.world.WorldProviderSurface;
-import net.minecraft.world.chunk.IChunkGenerator;
-import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraftforge.fml.common.IWorldGenerator;
 
 public class BlacklistTransformer implements IClassTransformer
 {
-    private static InsnList generatorCheck;
-    private static LabelNode oldMethodBegin;
-    
-    static
-    {
-        Field[] worldFields = World.class.getFields();
-        
-        String providerFieldName = "";
-        
-        for (Field field : worldFields)
-        {
-            if(field.getType().isAssignableFrom(WorldProvider.class))
-            {
-                providerFieldName = field.getName();
-            }
-        }
-        
-        generatorCheck = new InsnList();
-        oldMethodBegin = new LabelNode();
-        
-        generatorCheck.add(new VarInsnNode(Opcodes.ALOAD, 4));
-        generatorCheck.add(new FieldInsnNode(Opcodes.GETFIELD, Type.getInternalName(World.class), providerFieldName, Type.getDescriptor(WorldProvider.class)));
-        generatorCheck.add(new TypeInsnNode(Opcodes.INSTANCEOF, Type.getInternalName(WorldProviderSurface.class)));
-        generatorCheck.add(new JumpInsnNode(Opcodes.IFEQ, oldMethodBegin));
-        generatorCheck.add(new InsnNode(Opcodes.RETURN));
-        generatorCheck.add(oldMethodBegin);
-    }
+    // Streams: making things as complicated as possible since forever
+    private static String worldProviderFieldName = Arrays.asList(World.class.getFields()).stream().filter(field -> field.getType().isAssignableFrom(WorldProvider.class)).findAny().orElseThrow(IllegalStateException::new).getName();
+    private static Method worldGeneratorMethod = Arrays.asList(IWorldGenerator.class.getMethods()).stream().filter(method -> method.getName().equals("generate")).findAny().orElseThrow(IllegalStateException::new);
     
     private static InsnList createGeneratorCheck()
     {
-        InsnList instructions = new InsnList();
+        InsnList generatorCheck = new InsnList();
+        LabelNode methodBegin = new LabelNode();
         
-        Map<LabelNode, LabelNode> labelNodeMap = Collections.singletonMap(oldMethodBegin, new LabelNode());
+        generatorCheck.add(new VarInsnNode(Opcodes.ALOAD, 4));
+        generatorCheck.add(new FieldInsnNode(Opcodes.GETFIELD, Type.getInternalName(World.class), worldProviderFieldName, Type.getDescriptor(WorldProvider.class)));
+        generatorCheck.add(new TypeInsnNode(Opcodes.INSTANCEOF, Type.getInternalName(WorldProviderSurface.class)));
+        generatorCheck.add(new JumpInsnNode(Opcodes.IFEQ, methodBegin));
+        generatorCheck.add(new InsnNode(Opcodes.RETURN));
+        generatorCheck.add(methodBegin);
         
-        for(AbstractInsnNode instruction : generatorCheck.toArray())
-        {
-            instructions.add(instruction.clone(labelNodeMap));
-        }
-        
-        return instructions;
+        return generatorCheck;
     }
     
     @Override
@@ -82,29 +51,13 @@ public class BlacklistTransformer implements IClassTransformer
         ClassReader classReader = new ClassReader(basicClass);
         classReader.accept(classNode, 0);
         
-        if(transformedName.contains("IWorldGenerator"))
-        {
-            System.out.println(classNode.methods);
-        }
-        
         if((classNode.access & Opcodes.ACC_INTERFACE) == 0 && classNode.interfaces.contains(Type.getInternalName(IWorldGenerator.class)))
         {
-            System.out.println("Transforming: " + transformedName);
-            
-            Type returnType = Type.VOID_TYPE;
-            Type[] argumentTypes = 
-            {
-                Type.getType(Random.class),
-                Type.INT_TYPE,
-                Type.INT_TYPE,
-                Type.getType(World.class),
-                Type.getType(IChunkGenerator.class),
-                Type.getType(IChunkProvider.class)
-            };
+            System.out.println(transformedName);
             
             for(MethodNode method : classNode.methods)
             {
-                if((method.access & Opcodes.ACC_ABSTRACT) == 0 && method.name.equals("generate") && method.desc.equals(Type.getMethodDescriptor(returnType, argumentTypes)))
+                if((method.access & Opcodes.ACC_ABSTRACT) == 0 && method.name.equals("generate") && method.desc.equals(Type.getMethodDescriptor(worldGeneratorMethod)))
                 {
                     method.instructions.insert(createGeneratorCheck());
                 }
